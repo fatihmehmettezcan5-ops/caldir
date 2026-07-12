@@ -1,0 +1,26 @@
+{
+  "name": "@caldir/shared",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "dependencies": {
+    "tweetnacl": "^1.0.3",
+    "tweetnacl-util": "^0.15.1"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.43",
+    "typescript": "5.5"
+  }
+}

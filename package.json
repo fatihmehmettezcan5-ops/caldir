@@ -1,0 +1,19 @@
+{
+  "name": "caldir",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Çaldır! - İnternetsiz güvenli telefon kontrol (yerel WiFi)",
+  "license": "MIT",
+  "workspaces": ["server", "app", "shared", "test"],
+  "scripts": {
+    "build": "npm run build -w @caldir/shared && npm run build -w @caldir/server && npm run build -w @caldir/app && npm run build -w @caldir/test",
+    "dev:server": "npm run dev -w @caldir/server",
+    "dev:app": "npm run dev -w @caldir/app",
+    "start:server": "npm run start -w @caldir/server",
+    "smoke": "npm run smoke -w @caldir/test",
+    "lint": "echo lint TBD && exit 0",
+    "typecheck": "npm run typecheck -w @caldir/shared && npm run typecheck -w @caldir/server && npm run typecheck -w @caldir/app && npm run typecheck -w @caldir/test"
+  },
+  "engines": { "node": ">=18" }
+}

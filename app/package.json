@@ -1,0 +1,33 @@
+{
+  "name": "@caldir/app",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -p tsconfig.json --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "cap:add:android": "cap add android",
+    "cap:sync": "cap sync android",
+    "cap:patch": "node ../scripts/patch-android-manifest.js",
+    "android": "npm run build && npm run cap:sync && npm run cap:patch"
+  },
+  "dependencies": {
+    "@caldir/shared": "0.1.0",
+    "@capacitor/android": "^6.2.1",
+    "@capacitor/core": "^6.2.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tweetnacl": "^1.0.3",
+    "tweetnacl-util": "^0.15.1"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.2.1",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "typescript": "5.5",
+    "vite": "^5.4.0"
+  }
+}
