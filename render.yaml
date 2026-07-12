@@ -1,0 +1,17 @@
+﻿services:
+  - type: web
+    name: caldir-relay
+    runtime: node
+    plan: free
+    region: frankfurt
+    branch: master
+    rootDir: relay
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /
+    envVars:
+      - key: HOST
+        value: 0.0.0.0
+      - key: PORT
+        value: 8080
+    autoDeploy: true

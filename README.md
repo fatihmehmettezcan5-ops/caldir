@@ -1,8 +1,25 @@
 # Çaldır!
 
-İnternet bağlantısı OLMADAN, yerel WiFi (Hotspot / WiFi Direct) üzerinden
-telefonu uzaktan kontrol etmeye yarayan güvenli uygulama. Aynı APK hem
-kullanıcıyı **kontrol eder** hem de **kontrol edilir**.
+İnternet ister, yerel WiFi (Hotspot / WiFi Direct) ister, telefonu uzaktan
+kontrol etmeye yarayan güvenli uygulama. Aynı APK hem kullanıcıyı **kontrol
+eder** hem de **kontrol edilir**.
+
+## v0.3 — Relay mimari (yeni)
+
+v0.2'de kontrollü cihaz WiFi'de yerel bir WebSocket sunucu açardı; kontrolcü
+aynı ağda olmak zorundaydı. v0.3'te **public relay** kullanır:
+
+- Kontrollü cihaz (APK) outbound `wss://` ile relay'e bağlanır.
+- Kontrolcü (web arayüzü) aynı relay'e `wss://` ile bağlanır.
+- Relay iki tarafı 6 haneli **PIN** ile eşleştirir ve şifreli frame'leri
+  köprüler. Trafik **uçtan uca şifreli** (X25519 + AES-256) olduğundan relay
+  içeriği göremez.
+- Artık aynı ağda olmaya gerek yok; NAT/CGNAT arkasında bile çalışır.
+
+> **Güvenlik notu:** v0.3'te APK INTERNET izni **korunur** (sadece `wss://` için;
+> cleartext hâlâ kapalı). Relay trafiğin içeriğini göremez; uçtan uca şifre
+> değişmedi. Yerel WiFi (v0.2) modu hâlâ `dev:server` ile masaüstünde
+> mevcuttur.
 
 ## Özellikler
 - **İnternetsiz çalışma**: Tüm iletişim yerel WiFi üzerinden. AndroidManifest'ten
@@ -84,21 +101,35 @@ Veya Android Studio ile app/android klasörünü aç ve Run tuşuna bas.
 
 #### Uygulama içi akış
 
-1. APK açılır. **Rol seç**: kontrolcü mi kontrollü mü?
+1. APK açılır. **Rol seç**: kontrolcü mü kontrollü mı?
 2. Kontrollü seçersen:
-   - APK Java plugin'i 0.0.0.0:8080'de bir WS sunucu açar.
-   - Ekranda 6 haneli PIN + yerel ws://... URL gösterilir.
-3. Kontrolcü olarak başka bir cihazdan o PIN + URL girilir,
-   X25519+AES oturum kurulur, kontroller açılır.
+   - APK public relay'e outbound `wss://` ile bağlanır.
+   - Ekranda 6 haneli PIN gösterilir.
+3. Kontrolcü olarak (web arayüzü) o PIN'i girersin, relay iki tarafı
+   köprüler, X25519+AES oturumu kurulur, kontroller açılır.
 
 ## Güvenlik özeti
 - PIN asla diske yazılmaz; yalnızca hashPin ile türetilen verifier.
 - 3 yanlış deneme = slot tamamen kilitlenir; 5 dakika TTL.
 - Oturum anahtarı ECDH shared secret x pairing secret ile HKDF-style türetilir.
 - Her mesaj artan counter içerir; replay tamamen reddedilir.
-- AndroidManifest'ten INTERNET izni kaldırılır; cleartextTraffic kapalı.
+- cleartextTraffic kapalı; sadece `wss://` ve `ws://` (yerel) kullanılır.
 - WAKE_LOCK / BLUETOOTH_CONNECT / ACCESS_FINE_LOCATION / WIFI_STATE gibi
-  yalnızca yerel işler için gerekli izinler eklenir; **internet yok**.
+  yerel işler için gerekli izinler eklenir; relay trafiği uçtan uca şifreli.
+
+## Relay server deploy (ücretsiz)
+
+Relay server'ı Render.com free tier'da çalıştır:
+
+1. https://render.com'a GitHub hesabınla giriş yap.
+2. **New +** → **Blueprint** → repo `fatihmehmettezcan5-ops/caldir` seç.
+3. `render.yaml` otomatik `caldir-relay` servisini oluşturur.
+4. Deploy tamamlandığında URL: `https://caldir-relay.onrender.com`.
+5. APK ve web arayüzü bu URL'i varsayılan olarak kullanır. Geri almak
+   için `?relay=wss://baska-adres.com` URL parametresi verilir.
+
+> Render free tier 15dk idle'ından sonra sleep'e girer; ilk bağlantıda
+> ~30 sn uyanır. Uptime limiti yoktur.
 
 ## Bilinen sınırlar (v0.2)
 - "Mobil veri aç-kapat" bir normal APK ile yasak YAML polidesi
