@@ -45,6 +45,9 @@ export class CaldirClient {
   connect(url: string) {
     this.tx.connect(url);
   }
+  connectRelay(relayUrl: string, pin: string) {
+    this.tx.connectRelay(relayUrl, pin);
+  }
   disconnect() {
     this.tx.disconnect();
   }

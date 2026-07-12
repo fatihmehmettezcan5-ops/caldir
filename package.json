@@ -5,15 +5,17 @@
   "type": "module",
   "description": "Çaldır! - İnternetsiz güvenli telefon kontrol (yerel WiFi)",
   "license": "MIT",
-  "workspaces": ["server", "app", "shared", "test"],
+  "workspaces": ["server", "app", "shared", "test", "relay"],
   "scripts": {
-    "build": "npm run build -w @caldir/shared && npm run build -w @caldir/server && npm run build -w @caldir/app && npm run build -w @caldir/test",
+    "build": "npm run build -w @caldir/shared && npm run build -w @caldir/server && npm run build -w @caldir/app && npm run build -w @caldir/test && npm run build -w @caldir/relay",
     "dev:server": "npm run dev -w @caldir/server",
     "dev:app": "npm run dev -w @caldir/app",
+    "dev:relay": "npm run dev -w @caldir/relay",
     "start:server": "npm run start -w @caldir/server",
+    "start:relay": "npm run start -w @caldir/relay",
     "smoke": "npm run smoke -w @caldir/test",
     "lint": "echo lint TBD && exit 0",
-    "typecheck": "npm run typecheck -w @caldir/shared && npm run typecheck -w @caldir/server && npm run typecheck -w @caldir/app && npm run typecheck -w @caldir/test"
+    "typecheck": "npm run typecheck -w @caldir/shared && npm run typecheck -w @caldir/server && npm run typecheck -w @caldir/app && npm run typecheck -w @caldir/test && npm run typecheck -w @caldir/relay"
   },
   "engines": { "node": ">=18" }
 }

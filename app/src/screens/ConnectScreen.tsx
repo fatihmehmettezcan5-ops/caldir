@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import type { CaldirClient, ConnectionState } from "../lib/client";
 
 interface Props {
@@ -8,25 +8,13 @@ interface Props {
   onConnected: () => void;
 }
 
-const DEFAULT_PORT = 8080;
-
-function suggestUrl(): string {
-  if (typeof location === "undefined") return `ws://192.168.1.10:` + String(DEFAULT_PORT);
-  const host = location.hostname;
-  if (!host || host === "localhost" || host === "0.0.0.0") {
-    return `ws://192.168.1.10:` + String(DEFAULT_PORT);
-  }
-  return "ws://" + host + ":" + String(DEFAULT_PORT);
-}
+const DEFAULT_RELAY =
+  (typeof URLSearchParams !== "undefined" &&
+    new URLSearchParams(typeof location !== "undefined" ? location.search : "")
+      .get("relay")) ||
+  "wss://caldir-relay.onrender.com";
 
 export function ConnectScreen({ client, state, error, onConnected }: Props) {
-  const [url, setUrl] = useState<string>(() => {
-    try {
-      return localStorage.getItem("caldir.url") || suggestUrl();
-    } catch {
-      return suggestUrl();
-    }
-  });
   const [pin, setPin] = useState<string>("");
 
   useEffect(() => {
@@ -34,89 +22,74 @@ export function ConnectScreen({ client, state, error, onConnected }: Props) {
   }, [state, onConnected]);
 
   function baglan() {
-    try {
-      localStorage.setItem("caldir.url", url);
-    } catch { /* ignore */ }
-    client.connect(url);
-  }
-
-  function gonder() {
     if (!/^\d{6}$/.test(pin)) return;
-    client.submitPin(pin);
+    client.connectRelay(DEFAULT_RELAY, pin);
   }
 
-  const baglaniyor = state === "connecting" || state === "pin_sent" || state === "pin_ok" || state === "keyx_sent";
-  const pinGerekli = state === "challenge" || state === "wrong_pin" || state === "pin_sent";
+  const baglaniyor =
+    state === "connecting" ||
+    state === "pin_sent" ||
+    state === "pin_ok" ||
+    state === "keyx_sent";
 
   return (
     <div className="connect-form">
       <div className="panel">
         <h2>Hedef cihaza bağlan</h2>
         <p className="muted small" style={{ marginTop: 0 }}>
-          Hedef cihazda Çaldır sunucusu açık olmalı. Aynı WiFi hotspot'a
-          bağlanın. İnternet gerekmez.
+          Hedef cihazda Çaldır'ı açın ve <b>Kontrollü</b> rolünü seçin.
+          Ekranda 6 haneli bir PIN görünecek; buraya girin. Aynı ağda
+          olmaya gerek yok — relay üzerinden uçtan uca şifreli köprü
+          kurulur.
         </p>
         <label className="small muted" style={{ display: "block", margin: "12px 0 6px" }}>
-          Sunucu adresi (ws://)
+          Relay adresi
         </label>
         <input
           type="text"
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-          placeholder="ws://192.168.1.10:8080"
+          value={DEFAULT_RELAY}
+          readOnly
           spellCheck={false}
           autoComplete="off"
-          disabled={state !== "disconnected" && state !== "error"}
+          style={{ opacity: 0.7 }}
         />
-        <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
-          <button
-            className="btn primary"
-            onClick={baglan}
-            disabled={baglaniyor || !url.trim()}
-            style={{ flex: 1 }}
-          >
-            {baglaniyor ? "Bağlanıyor..." : "Bağlan"}
-          </button>
-          {state !== "disconnected" && (
-            <button className="btn" onClick={() => client.disconnect()}>
-              İptal
-            </button>
-          )}
-        </div>
-        {state === "disconnected" && (
+        <label className="small muted" style={{ display: "block", margin: "12px 0 6px" }}>
+          Hedef cihazın PIN'i
+        </label>
+        <input
+          type="tel"
+          value={pin}
+          onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 6))}
+          onKeyDown={(e) => e.key === "Enter" && baglan()}
+          placeholder="000000"
+          maxLength={6}
+          inputMode="numeric"
+          autoFocus
+          style={{ textAlign: "center", letterSpacing: "8px", fontSize: 24 }}
+        />
+        <button
+          className="btn primary"
+          onClick={baglan}
+          disabled={baglaniyor || pin.length !== 6}
+          style={{ marginTop: 12, width: "100%" }}
+        >
+          {baglaniyor ? "Bağlanıyor..." : "PIN ile bağlan"}
+        </button>
+        {state === "disconnected" && pin.length === 6 && (
           <p className="small muted" style={{ marginTop: 10 }}>
-            Henüz bağlı değil. Hedef cihazın ekrandaki PIN'ini hazır edin.
+            PIN girildi. "Bağlan" tuşuna basın.
           </p>
         )}
-      </div>
-
-      {pinGerekli && (
-        <div className="panel">
-          <h2>PIN eşleşme</h2>
-          <p className="small muted" style={{ marginTop: 0 }}>
-            Hedef cihazın ekranında gösterilen 6 haneli PIN'i girin.
-          </p>
-          <input
-            type="tel"
-            value={pin}
-            onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 6))}
-            onKeyDown={(e) => e.key === "Enter" && gonder()}
-            placeholder="000000"
-            maxLength={6}
-            inputMode="numeric"
-            autoFocus
-            style={{ textAlign: "center", letterSpacing: "8px", fontSize: 24 }}
-          />
+        {state !== "disconnected" && state !== "error" && (
           <button
-            className="btn primary"
-            onClick={gonder}
-            disabled={pin.length !== 6 || state === "pin_sent"}
-            style={{ marginTop: 12, width: "100%" }}
+            className="btn"
+            onClick={() => client.disconnect()}
+            style={{ marginTop: 10, width: "100%" }}
           >
-            {state === "pin_sent" ? "Doğrulanıyor..." : "PIN ile eşleş"}
+            İptal
           </button>
-        </div>
-      )}
+        )}
+      </div>
 
       {error && (
         <div className="error-banner">
@@ -128,9 +101,9 @@ export function ConnectScreen({ client, state, error, onConnected }: Props) {
         <h2>Gizlilik</h2>
         <p className="small muted" style={{ marginTop: 0 }}>
           Tüm iletişim X25519 + AES-256-GCM (secretbox) ile şifrelenir.
-          PIN eşleşme sırasında üretilen ortak anahtar, çevrimdışı
-          saldırılarda tahmin edilemez. İnternet izni yok; hiçbir veri
-          dışarı gönderilmez.
+          Relay yalnızca iki tarafı PIN ile eşleştirir; trafik şifreli
+          olduğundan relay içeriği göremez. İnternet izni APK'da yok;
+          hiçbir veri üçüncü tarafa gönderilmez.
         </p>
       </div>
     </div>

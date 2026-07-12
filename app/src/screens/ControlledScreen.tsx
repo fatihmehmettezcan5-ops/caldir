@@ -1,9 +1,9 @@
-// Çaldır "kontrollü" ekranı.
-// CapacitorHost ile WS sunucuyu başlatır, PIN ve adresi gösterir.
+﻿// Çaldır "kontrollü" ekranı.
+// RelayHost ile public relay'e outbound bağlanır ve PIN gösterir.
 
 import { useEffect, useState } from "react";
 import { PairingManager, type PairingStore, type PeerRecord } from "@caldir/shared";
-import { CapacitorHost } from "../server/capacitor-host.js";
+import { RelayHost } from "../server/relay-host.js";
 import { AndroidShellPlatform } from "../server/android-shell-platform.js";
 
 class MemPairingStore implements PairingStore {
@@ -16,29 +16,32 @@ interface Props {
   onStop: () => void;
 }
 
+// Public relay URL. Override at runtime via ?relay=... (only for debugging).
+const DEFAULT_RELAY =
+  (typeof URLSearchParams !== "undefined" &&
+    new URLSearchParams(typeof location !== "undefined" ? location.search : "")
+      .get("relay")) ||
+  "wss://caldir-relay.onrender.com";
+
 export function ControlledScreen({ onStop }: Props) {
   const [pin, setPin] = useState<string>("...");
-  const [url, setUrl] = useState<string | null>(null);
   const [durum, setDurum] = useState<"başlıyor" | "çalışıyor" | "hata">("başlıyor");
   const [err, setErr] = useState<string | null>(null);
-  const [host, setHost] = useState<CapacitorHost | null>(null);
+  const [host, setHost] = useState<RelayHost | null>(null);
 
   useEffect(() => {
     let iptal = false;
-    let baslatilan: CapacitorHost | null = null;
+    let baslatilan: RelayHost | null = null;
     (async () => {
       try {
         const eslesme = new PairingManager(new MemPairingStore());
         const platform = new AndroidShellPlatform();
-        const h = new CapacitorHost({ pairing: eslesme, platform });
+        const h = new RelayHost({ pairing: eslesme, platform, relayUrl: DEFAULT_RELAY });
         const r = await h.start();
         if (iptal) { await h.stop(); return; }
-        const p = eslesme.beginPairing();
         baslatilan = h;
-        if (iptal) { await h.stop(); return; }
         setHost(h);
-        setPin(p);
-        setUrl(r.url ?? "ws://<bu-cihaz-adresi>:" + String(r.port));
+        setPin(r.pin);
         setDurum("çalışıyor");
       } catch (e) {
         if (iptal) return;
@@ -61,16 +64,14 @@ export function ControlledScreen({ onStop }: Props) {
     if (host) { await host.stop(); }
     setDurum("başlıyor");
     setPin("...");
-    setUrl(null);
     setHost(null);
     try {
       const eslesme = new PairingManager(new MemPairingStore());
       const platform = new AndroidShellPlatform();
-      const h = new CapacitorHost({ pairing: eslesme, platform });
+      const h = new RelayHost({ pairing: eslesme, platform, relayUrl: DEFAULT_RELAY });
       const r = await h.start();
       setHost(h);
-      setPin(eslesme.beginPairing());
-      setUrl(r.url ?? "ws://<bu-cihaz-adresi>:" + String(r.port));
+      setPin(r.pin);
       setDurum("çalışıyor");
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
@@ -83,7 +84,7 @@ export function ControlledScreen({ onStop }: Props) {
       <div className="panel">
         <h2>Bu cihaz kontrollü</h2>
         {durum === "başlıyor" && (
-          <p className="small muted">Sunucu başlatılıyor...</p>
+          <p className="small muted">Relay'e bağlanılıyor...</p>
         )}
         {durum === "çalışıyor" && (
           <>
@@ -91,10 +92,9 @@ export function ControlledScreen({ onStop }: Props) {
               Kontrolcü cihaza bu PIN'i gir:
             </p>
             <div className="pin-display">{pin}</div>
-            <p className="small muted" style={{ marginTop: 12 }}>Sunucu adresi:</p>
-            <div className="pin-display" style={{ fontSize: 18, letterSpacing: 1 }}>
-              {url}
-            </div>
+            <p className="small muted" style={{ marginTop: 12 }}>
+              Relay adresi: <code>{DEFAULT_RELAY}</code>
+            </p>
             <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
               <button className="btn" onClick={yeniPin} style={{ flex: 1 }}>
                 Yeni PIN
@@ -107,7 +107,7 @@ export function ControlledScreen({ onStop }: Props) {
         )}
         {durum === "hata" && (
           <div className="error-banner">
-            Sunucu başlatılamadı: {err}
+            Relay'e bağlanılamadı: {err}
           </div>
         )}
       </div>
@@ -115,10 +115,10 @@ export function ControlledScreen({ onStop }: Props) {
       <div className="panel">
         <h2>Güvenlik</h2>
         <p className="small muted" style={{ marginTop: 0 }}>
-          Sunucu yalnızca yerel WiFi üzerinden dinler. İnternet izni APK'dan
-          kaldırılmıştır. Her bağlanan cihaz 6 haneli PIN ile doğrulanır;
-          3 yanlış denemede slot sıfırlanır. Tüm iletişim X25519 + AES-256
-          ile şifrelidir.
+          Relay yalnızca iki tarafı PIN ile köprüler; tüm iletişim
+          X25519 + AES-256 ile uçtan uca şifrelidir. Relay trafiği
+          okuyamaz. Bağlantı outbound olduğu için hiçbir port açmaya
+          gerek yoktur.
         </p>
       </div>
     </div>

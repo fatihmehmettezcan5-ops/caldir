@@ -46,10 +46,15 @@ if (!existsSync(manifestPath)) {
 
 let src = readFileSync(manifestPath, "utf8");
 
-// ---- 1) Strip the INTERNET grants Capacitor adds by default. -----------
+// ---- 1) Strip cleartext traffic but KEEP INTERNET for the relay. -----------
+// The original Çaldır design removed INTERNET entirely because all traffic was
+// local. The relay design (v0.3) needs outbound wss:// to the public relay so
+// the controlled device can be reached from outside the LAN. Cleartext traffic
+// is still disabled (only wss:// is used); the connection is end-to-end
+// encrypted so the relay cannot read the payload.
 
+// Only strip ACCESS_NETWORK_STATE (we keep INTERNET for the relay).
 const stripPatterns = [
-  /<uses-permission\s+android:name="android\.permission\.INTERNET"\s*\/>\s*\n?/g,
   /<uses-permission\s+android:name="android\.permission\.ACCESS_NETWORK_STATE"\s*\/>\s*\n?/g,
 ];
 let stripped = 0;
@@ -111,7 +116,7 @@ if (!/<!-- caldir-patched -->/.test(src)) {
 writeFileSync(manifestPath, src, "utf8");
 
 console.log(
-  `patch-android-manifest: ${stripped} internet izni kaldırıldı; ` +
-  `${added} yerel-soket izni eklendi; cleartextTraffic kapandı. ` +
+  `patch-android-manifest: ${stripped} gereksiz izin kaldırıldı; ` +
+  `${added} yerel izin eklendi; INTERNET (relay için) korundu; cleartextTraffic kapandı. ` +
   `(${manifestPath})`,
 );

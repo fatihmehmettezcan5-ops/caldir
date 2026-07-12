@@ -118,6 +118,44 @@ export class Transport {
     };
   }
 
+  // Connect through the public relay using a 6-digit PIN. The relay URL must
+  // already include the pin/role query parameters. After the relay bridge is
+  // established we send the standard Çaldır `hello` frame which the host side
+  // (the controlled device) will see unchanged.
+  connectRelay(relayUrl: string, pin: string) {
+    this.disconnect();
+    this.clientKeys = newKeyPair();
+    this.setState("connecting");
+    const url = `${relayUrl}/?pin=${encodeURIComponent(pin)}&role=guest`;
+    let ws: WebSocket;
+    try {
+      ws = new WebSocket(url, "caldir-relay.v1");
+    } catch {
+      this.setState("error");
+      return;
+    }
+    ws.binaryType = "arraybuffer";
+    this.ws = ws;
+    ws.onopen = () => {
+      // Give the host a moment to arrive; the relay silently drops frames
+      // until both peers are connected so the hello may need to be retried.
+      this.send({
+        type: "hello",
+        v: PROTOCOL_VERSION,
+        pub: toBase64(this.clientKeys!.publicKey),
+      });
+    };
+    ws.onmessage = (ev) => this.onMessage(ev);
+    ws.onclose = () => {
+      this.ws = null;
+      this.setState("disconnected");
+    };
+    ws.onerror = () => {
+      this.events.onError?.("relay_error");
+      this.setState("error");
+    };
+  }
+
   disconnect() {
     if (this.ws) {
       try {
