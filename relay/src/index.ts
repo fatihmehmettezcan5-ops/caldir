@@ -13,8 +13,9 @@
 //     end-to-end encrypted (X25519 + AES-256-GCM via tweetnacl). The relay
 //     forwards opaque text frames; it never sees plaintext.
 //   - Only text frames are forwarded; binary frames are rejected (close 1003).
-//   - Hard frame cap of 4 MiB; rate-limit 20 frames / 5 s per connection.
+//   - Hard frame cap of 4 MiB; rate-limit 60 frames / 5 s per connection.
 
+import { createServer, type Server } from "node:http";
 import { WebSocketServer, WebSocket } from "ws";
 
 export interface RelayOptions {
@@ -49,16 +50,31 @@ export function startRelay(opts: RelayOptions): { close: () => void; port: numbe
   }
   const sweeper = setInterval(sweep, 30_000);
 
+  // HTTP server: serves a tiny health-check so Render (or any PaaS) can probe.
+  const httpServer: Server = createServer((req, res) => {
+    if (req.url === "/" || req.url === "/health") {
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(JSON.stringify({ ok: true, rooms: rooms.size, v: "caldir-relay/1" }));
+      return;
+    }
+    res.writeHead(404);
+    res.end("not found");
+  });
+
   const wss = new WebSocketServer({
-    host: opts.host,
-    port: opts.port,
+    noServer: true,
     handleProtocols: (p: Set<string>): string | false =>
       p.has("caldir-relay.v1") ? "caldir-relay.v1" : false,
     maxPayload: MAX_PAYLOAD,
   });
 
+  httpServer.on("upgrade", (req, socket, head) => {
+    wss.handleUpgrade(req, socket, head, (ws) => {
+      wss.emit("connection", ws, req);
+    });
+  });
+
   wss.on("connection", (ws: WebSocket, req) => {
-    // URL: /?pin=123456&role=host|guest
     const url = new URL(req.url || "/", "http://dummy");
     const pin = url.searchParams.get("pin") || "";
     const role = url.searchParams.get("role") || "";
@@ -87,6 +103,9 @@ export function startRelay(opts: RelayOptions): { close: () => void; port: numbe
       room.guest = ws;
     }
 
+    const myRoom = room;
+    const myRole = role;
+
     let frameCount = 0;
     let windowStart = Date.now();
 
@@ -96,16 +115,16 @@ export function startRelay(opts: RelayOptions): { close: () => void; port: numbe
       if (now - windowStart > WINDOW_MS) { windowStart = now; frameCount = 0; }
       frameCount += 1;
       if (frameCount > MAX_FRAMES_PER_WINDOW) { ws.close(1008, "rate_limit"); return; }
-      const peer = role === "host" ? room!.guest : room!.host;
+      const peer = myRole === "host" ? myRoom.guest : myRoom.host;
       if (peer && peer.readyState === peer.OPEN) {
         peer.send(data.toString());
       }
     });
 
     ws.on("close", () => {
-      if (role === "host") room!.host = null;
-      else room!.guest = null;
-      if (!room!.host && !room!.guest) {
+      if (myRole === "host") myRoom.host = null;
+      else myRoom.guest = null;
+      if (!myRoom.host && !myRoom.guest) {
         rooms.delete(pin);
       }
     });
@@ -113,8 +132,14 @@ export function startRelay(opts: RelayOptions): { close: () => void; port: numbe
     ws.on("error", () => { /* swallow */ });
   });
 
+  httpServer.listen(opts.port, opts.host);
+
   return {
-    close: () => { clearInterval(sweeper); wss.close(); },
+    close: () => {
+      clearInterval(sweeper);
+      wss.close();
+      httpServer.close();
+    },
     port: opts.port,
   };
 }
