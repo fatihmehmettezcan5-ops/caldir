@@ -114,7 +114,7 @@ export function App() {
       )}
 
       <p className="small muted center" style={{ marginTop: 18 }}>
-        Çaldır v0.2 — internetsiz, yerel WiFi, uçtan uca şifreli.
+        Çaldır v0.3 — relay üzerinden, uçtan uca şifreli, aynı ağ şart değil.
       </p>
 
       {toast && <div className="toast">{toast}</div>}
