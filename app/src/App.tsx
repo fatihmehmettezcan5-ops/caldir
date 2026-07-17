@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { CaldirClient, type ConnectionState } from "./lib/client";
+import { fallbackStateError, humanizeTransportError } from "./lib/error-messages";
 import { ConnectScreen } from "./screens/ConnectScreen";
 import { ControlScreen } from "./screens/ControlScreen";
 import { RoleScreen } from "./screens/RoleScreen";
@@ -7,14 +8,14 @@ import { ControlledScreen } from "./screens/ControlledScreen";
 
 const STATE_LABEL: Record<ConnectionState, string> = {
   disconnected: "Bağlı değil",
-  connecting: "Bağlanıyor",
+  connecting: "Bağlantı kuruluyor",
   challenge: "PIN bekleniyor",
   pin_sent: "PIN doğrulanıyor",
-  pin_ok: "PIN tamam",
-  keyx_sent: "Anahtar üretiliyor",
-  ready: "Hazır",
+  pin_ok: "PIN doğrulandı",
+  keyx_sent: "Güvenli oturum hazırlanıyor",
+  ready: "Bağlantı hazır",
   wrong_pin: "Yanlış PIN",
-  error: "Hata",
+  error: "Bağlantı hatası",
 };
 
 type Role = "menu" | "controller" | "controlled";
@@ -32,8 +33,9 @@ export function App() {
         onState: setState,
         onMessage: () => {},
         onError: (e) => {
-          setError(e);
-          setToast(e);
+          const human = humanizeTransportError(e) ?? "Bağlantı hatası oluştu.";
+          setError(human);
+          setToast(human);
         },
       }),
     [],
@@ -43,9 +45,14 @@ export function App() {
 
   useEffect(() => {
     if (state === "disconnected") setConnected(false);
-    else if (state === "ready") setConnected(true);
-    if (state === "error") setError("Bağlantı hatası. Tekrar deneyin.");
-  }, [state]);
+    else if (state === "ready") {
+      setConnected(true);
+      setError(null);
+    }
+
+    const fallback = fallbackStateError(state);
+    if (fallback && !error) setError(fallback);
+  }, [state, error]);
 
   useEffect(() => {
     if (!toast) return;
@@ -114,7 +121,7 @@ export function App() {
       )}
 
       <p className="small muted center" style={{ marginTop: 18 }}>
-        Çaldır v0.3 — relay üzerinden, uçtan uca şifreli, aynı ağ şart değil.
+        Çaldır — uçtan uca şifreli bağlantı ile, aynı ağda olmasanız bile güvenli kontrol.
       </p>
 
       {toast && <div className="toast">{toast}</div>}

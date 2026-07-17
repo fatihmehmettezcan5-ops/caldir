@@ -45,7 +45,7 @@ export interface CaldirServerPlugin {
   stop(): Promise<void>;
   send(opts: FrameSendOpts): Promise<void>;
   closeConn(opts: { connId: string; code: number; reason: string }): Promise<void>;
-  getUrl(): Promise<{ url: string } | null>;
+  getUrl(): Promise<{ url?: string | null } | null>;
 
   addListener(
     event: "caldir:frame",

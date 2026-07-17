@@ -1,4 +1,4 @@
-﻿// Çaldır "kontrollü" ekranı.
+// Çaldır "kontrol edilen" ekranı.
 // RelayHost ile public relay'e outbound bağlanır ve PIN gösterir.
 
 import { useEffect, useState } from "react";
@@ -16,7 +16,6 @@ interface Props {
   onStop: () => void;
 }
 
-// Public relay URL. Override at runtime via ?relay=... (only for debugging).
 const DEFAULT_RELAY =
   (typeof URLSearchParams !== "undefined" &&
     new URLSearchParams(typeof location !== "undefined" ? location.search : "")
@@ -28,6 +27,7 @@ export function ControlledScreen({ onStop }: Props) {
   const [durum, setDurum] = useState<"başlıyor" | "çalışıyor" | "hata">("başlıyor");
   const [err, setErr] = useState<string | null>(null);
   const [host, setHost] = useState<RelayHost | null>(null);
+  const [copied, setCopied] = useState<"pin" | "relay" | null>(null);
 
   useEffect(() => {
     let iptal = false;
@@ -65,6 +65,7 @@ export function ControlledScreen({ onStop }: Props) {
     setDurum("başlıyor");
     setPin("...");
     setHost(null);
+    setErr(null);
     try {
       const eslesme = new PairingManager(new MemPairingStore());
       const platform = new AndroidShellPlatform();
@@ -79,46 +80,81 @@ export function ControlledScreen({ onStop }: Props) {
     }
   }
 
+  async function kopyala(which: "pin" | "relay") {
+    const text = which === "pin" ? pin : DEFAULT_RELAY;
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+        setCopied(which);
+        setTimeout(() => setCopied(null), 1600);
+      }
+    } catch {
+      // ignore best effort
+    }
+  }
+
   return (
     <div>
+      <div className="panel hero-panel">
+        <div className="hero-panel-head">
+          <div>
+            <h2>Bu cihaz kontrol edilmeye hazır</h2>
+            <p className="small muted" style={{ marginTop: 8 }}>
+              Bağlanacak kişi yalnızca bu ekrandaki PIN ile oturum açabilir.
+              İstersen her bağlantı öncesi yeni PIN oluşturabilirsin.
+            </p>
+          </div>
+          <span className="tag ok">
+            {durum === "çalışıyor" ? "Hazır" : durum === "başlıyor" ? "Hazırlanıyor" : "Hata"}
+          </span>
+        </div>
+      </div>
+
       <div className="panel">
-        <h2>Bu cihaz kontrollü</h2>
+        <h2>Bağlantı bilgileri</h2>
         {durum === "başlıyor" && (
-          <p className="small muted">Relay'e bağlanılıyor...</p>
+          <p className="small muted">Relay bağlantısı hazırlanıyor...</p>
         )}
         {durum === "çalışıyor" && (
           <>
             <p className="small muted" style={{ marginTop: 0 }}>
-              Kontrolcü cihaza bu PIN'i gir:
+              Kontrol eden tarafta aşağıdaki 6 haneli PIN'i gir.
             </p>
             <div className="pin-display">{pin}</div>
-            <p className="small muted" style={{ marginTop: 12 }}>
+            <div className="grid2" style={{ marginTop: 10 }}>
+              <button className="btn" onClick={() => void kopyala("pin")}>
+                {copied === "pin" ? "PIN kopyalandı" : "PIN'i kopyala"}
+              </button>
+              <button className="btn" onClick={() => void kopyala("relay")}>
+                {copied === "relay" ? "Adres kopyalandı" : "Relay adresini kopyala"}
+              </button>
+            </div>
+            <p className="small muted" style={{ marginTop: 12, lineHeight: 1.7 }}>
               Relay adresi: <code>{DEFAULT_RELAY}</code>
             </p>
             <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
               <button className="btn" onClick={yeniPin} style={{ flex: 1 }}>
-                Yeni PIN
+                Yeni PIN oluştur
               </button>
               <button className="btn danger" onClick={durdur} style={{ flex: 1 }}>
-                Durdur
+                Kontrollü modu kapat
               </button>
             </div>
           </>
         )}
         {durum === "hata" && (
           <div className="error-banner">
-            Relay'e bağlanılamadı: {err}
+            Kontrol edilen mod başlatılamadı: {err}
           </div>
         )}
       </div>
 
       <div className="panel">
         <h2>Güvenlik</h2>
-        <p className="small muted" style={{ marginTop: 0 }}>
-          Relay yalnızca iki tarafı PIN ile köprüler; tüm iletişim
-          X25519 + AES-256 ile uçtan uca şifrelidir. Relay trafiği
-          okuyamaz. Bağlantı outbound olduğu için hiçbir port açmaya
-          gerek yoktur.
+        <p className="small muted" style={{ marginTop: 0, lineHeight: 1.7 }}>
+          Relay yalnızca iki tarafı eşleştirir. PIN doğrulaması tamamlandıktan sonra
+          trafik uçtan uca şifrelenir. Bu nedenle relay sunucusu komut içeriğini ve
+          oturum verilerini okuyamaz.
         </p>
       </div>
     </div>

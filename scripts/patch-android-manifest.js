@@ -1,24 +1,26 @@
 // patch-android-manifest.js
 //
-// Caldir's headline security property is "no internet, ever". Capacitor's
-// default AndroidManifest.xml injects <uses-permission
-// android:name="android.permission.INTERNET"/> plus ACCESS_NETWORK_STATE.
-// We strip both so even a buggy native plugin can't phone home.
+// Çaldır'ın eski yerel-WiFi tasarımı INTERNET iznini tamamen kaldırıyordu.
+// Mevcut relay-first mimaride kontrollü cihaz outbound `wss://` ile public
+// relay'e bağlandığı için INTERNET izni korunur; buna karşılık cleartext
+// trafik kapatılır ve gereksiz ağ izinleri temizlenir.
 //
-// At the same time we ADD the local-only permissions Caldir actually needs:
-//   - ACCESS_WIFI_STATE / CHANGE_WIFI_STATE   (WiFi status & toggle)
-//   - CHANGE_NETWORK_STATE                     (cellular toggle)
-//   - BLUETOOTH_CONNECT / BLUETOOTH_ADMIN      (Android 12+ / classic BT)
-//   - ACCESS_FINE_LOCATION                     (location.get)
-//   - WAKE_LOCK                                (device.ring)
-//   - FOREGROUND_SERVICE                       (WS server keepalive)
-//   - POST_NOTIFICATIONS                       (Android 13+; notify.send)
+// Bu scriptin görevi:
+// - ACCESS_NETWORK_STATE gibi artık gereksiz izinleri temizlemek
+// - cleartext traffic'i kapatmak
+// - uygulamanın gerçekten kullandığı yerel/cihaz izinlerini idempotent eklemek
 //
-//INTERNET removed so the device literally cannot resolve DNS or open any
-// socket to a routable address. Local sockets (127.0.0.1, RFC1918) still
-// work because Android permits them on the local network without INTERNET.
+// Eklenen izinler:
+//   - ACCESS_WIFI_STATE / CHANGE_WIFI_STATE   (WiFi durum/anahtar)
+//   - CHANGE_NETWORK_STATE                    (bağlantı durumu değişiklikleri)
+//   - BLUETOOTH_CONNECT / BLUETOOTH_ADMIN     (Bluetooth kontrolleri)
+//   - ACCESS_FINE_LOCATION / ACCESS_COARSE_LOCATION
+//   - WAKE_LOCK
+//   - FOREGROUND_SERVICE
+//   - POST_NOTIFICATIONS
 //
-// Idempotent: running twice is a no-op.
+// Özet: relay için INTERNET korunur, cleartext kapalı kalır, script birden
+// fazla kez çalıştırılsa bile aynı sonucu üretir.
 
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { join, dirname } from "node:path";

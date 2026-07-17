@@ -48,8 +48,8 @@ export function startSecureServer(opts: ServerOptions): { close: () => void; por
       if (frameCount > MAX_FRAMES_PER_WINDOW) { ws.close(1008, "rate_limit"); return; }
       let frame: PlainFrame;
       try { frame = JSON.parse(data.toString()) as PlainFrame; } catch { ws.close(1003, "invalid_json"); return; }
-      session.handleFrame(frame).catch((e) => {
-        const message = e instanceof Error ? e.message : "internal";
+      session.handleFrame(frame).catch((error: unknown) => {
+        const message = error instanceof Error ? error.message : "internal";
         try { ws.send(JSON.stringify({ type: "error", code: "internal", message })); } catch { /* ignore */ }
       });
     });

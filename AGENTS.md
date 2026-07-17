@@ -5,7 +5,8 @@ Bu repoda çalışırken:
 - **Typecheck**: npm run typecheck
 - **Server dev**: npm run dev:server
 - **App dev**: npm run dev:app
-- **Smoke**: npm run smoke
+- **Relay dev**: npm run dev:relay
+- **Smoke**: npm run smoke (gerekli workspace build'lerini otomatik alır)
 - **Android sync + patch**: npm run cap:sync -w @caldir/app; npm run cap:patch -w @caldir/app
 - **Android APK**: JDK 17 + Android SDK gerekir. `JAVA_HOME` ayarlı iken
   `app/android/gradlew assembleDebug` (bu repo JDK olmadan derlenemiyor).

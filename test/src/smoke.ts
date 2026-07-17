@@ -8,6 +8,7 @@
 // This is an end-to-end proof that the server and an independent client
 // implementation agree on the protocol.
 
+import WebSocket, { type MessageEvent } from "ws";
 import nacl from "tweetnacl";
 import {
   deriveSessionKey,

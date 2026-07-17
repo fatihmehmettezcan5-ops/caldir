@@ -1,4 +1,4 @@
-﻿import { startRelay } from "./index.js";
+import { startRelay } from "./index.js";
 
 async function main() {
   const host = process.env.HOST ?? "0.0.0.0";

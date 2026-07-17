@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Çaldır! - İnternetsiz güvenli telefon kontrol (yerel WiFi)",
+  "description": "Çaldır! - Relay-first, uçtan uca şifreli telefon kontrol projesi", 
   "license": "MIT",
   "workspaces": ["server", "app", "shared", "test", "relay"],
   "scripts": {
@@ -13,9 +13,9 @@
     "dev:relay": "npm run dev -w @caldir/relay",
     "start:server": "npm run start -w @caldir/server",
     "start:relay": "npm run start -w @caldir/relay",
-    "smoke": "npm run smoke -w @caldir/test",
+    "smoke": "npm run build -w @caldir/shared && npm run build -w @caldir/server && npm run build -w @caldir/test && npm run smoke -w @caldir/test",
     "lint": "echo lint TBD && exit 0",
-    "typecheck": "npm run typecheck -w @caldir/shared && npm run typecheck -w @caldir/server && npm run typecheck -w @caldir/app && npm run typecheck -w @caldir/test && npm run typecheck -w @caldir/relay"
+    "typecheck": "npm run build -w @caldir/shared && npm run typecheck -w @caldir/shared && npm run build -w @caldir/server && npm run typecheck -w @caldir/server && npm run typecheck -w @caldir/app && npm run typecheck -w @caldir/test && npm run typecheck -w @caldir/relay"
   },
   "engines": { "node": ">=18" }
 }

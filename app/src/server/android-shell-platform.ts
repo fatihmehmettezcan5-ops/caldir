@@ -20,13 +20,20 @@ import {
 } from "./capacitor-control.js";
 
 export class AndroidShellPlatform implements Platform {
-  private ctl: CaldirControlPlugin;
+  private ctl: CaldirControlPlugin | null;
   readonly isReal: boolean;
 
   constructor() {
     const p = getCaldirControlPlugin();
-    this.ctl = p as CaldirControlPlugin;
+    this.ctl = p;
     this.isReal = !!p;
+  }
+
+  private requireControlPlugin(): CaldirControlPlugin {
+    if (!this.ctl) {
+      throw new Error("caldir_control_unavailable");
+    }
+    return this.ctl;
   }
 
   name(): string {
@@ -34,37 +41,37 @@ export class AndroidShellPlatform implements Platform {
   }
 
   async setWifi(enabled: boolean): Promise<boolean> {
-    return (await this.ctl.setWifi({ enabled })).enabled;
+    return (await this.requireControlPlugin().setWifi({ enabled })).enabled;
   }
   async setCellular(enabled: boolean): Promise<boolean> {
-    return (await this.ctl.setCellular({ enabled })).enabled;
+    return (await this.requireControlPlugin().setCellular({ enabled })).enabled;
   }
   async setBluetooth(enabled: boolean): Promise<boolean> {
-    return (await this.ctl.setBluetooth({ enabled })).enabled;
+    return (await this.requireControlPlugin().setBluetooth({ enabled })).enabled;
   }
   async getConnectivity(): Promise<ConnectivityState> {
-    return this.ctl.getConnectivity();
+    return this.requireControlPlugin().getConnectivity();
   }
   async setVolume(level: number, stream: VolumeStream): Promise<VolumeState> {
-    return this.ctl.setVolume({ level, stream });
+    return this.requireControlPlugin().setVolume({ level, stream });
   }
   async getVolume(stream: VolumeStream): Promise<VolumeState> {
-    return this.ctl.getVolume({ stream });
+    return this.requireControlPlugin().getVolume({ stream });
   }
   async ring(): Promise<void> {
-    await this.ctl.ring();
+    await this.requireControlPlugin().ring();
   }
   async lock(): Promise<void> {
-    await this.ctl.lock();
+    await this.requireControlPlugin().lock();
   }
   async getBattery(): Promise<BatteryInfo> {
-    return this.ctl.getBattery();
+    return this.requireControlPlugin().getBattery();
   }
   async listFiles(path: string): Promise<FileEntry[]> {
-    return (await this.ctl.listFiles({ path })).entries;
+    return (await this.requireControlPlugin().listFiles({ path })).entries;
   }
   async readFile(path: string): Promise<{ name: string; data: Uint8Array }> {
-    const r = await this.ctl.readFile({ path });
+    const r = await this.requireControlPlugin().readFile({ path });
     // base64 -> bytes
     const bin = atob(r.dataB64);
     const bytes = new Uint8Array(bin.length);
@@ -76,12 +83,12 @@ export class AndroidShellPlatform implements Platform {
     let bin = "";
     for (let i = 0; i < data.length; i++) bin += String.fromCharCode(data[i]);
     const b64 = btoa(bin);
-    return this.ctl.writeFile({ name, dataB64: b64 });
+    return this.requireControlPlugin().writeFile({ name, dataB64: b64 });
   }
   async getLocation(): Promise<LocationInfo> {
-    return this.ctl.getLocation();
+    return this.requireControlPlugin().getLocation();
   }
   async sendNotification(title: string, body: string): Promise<void> {
-    await this.ctl.sendNotification({ title, body });
+    await this.requireControlPlugin().sendNotification({ title, body });
   }
 }

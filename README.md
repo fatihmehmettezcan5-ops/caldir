@@ -1,142 +1,169 @@
 # Çaldır!
 
-İnternet ister, yerel WiFi (Hotspot / WiFi Direct) ister, telefonu uzaktan
-kontrol etmeye yarayan güvenli uygulama. Aynı APK hem kullanıcıyı **kontrol
-eder** hem de **kontrol edilir**.
+Çaldır!, bir Android cihazı başka bir cihazdan güvenli biçimde kontrol etmeye
+odaklanan bir projedir. Aynı APK hem **kontrol edilen cihaz** hem de
+**kontrolcü tarafına yardımcı kabuk** olarak çalışabilir; web arayüzü ise esas
+kontrol panelidir.
 
-## v0.3 — Relay mimari (yeni)
+## Mevcut durum: v0.3 relay-first mimari
 
-v0.2'de kontrollü cihaz WiFi'de yerel bir WebSocket sunucu açardı; kontrolcü
-aynı ağda olmak zorundaydı. v0.3'te **public relay** kullanır:
+Bu repo artık **relay-first** çalışır.
 
-- Kontrollü cihaz (APK) outbound `wss://` ile relay'e bağlanır.
-- Kontrolcü (web arayüzü) aynı relay'e `wss://` ile bağlanır.
-- Relay iki tarafı 6 haneli **PIN** ile eşleştirir ve şifreli frame'leri
-  köprüler. Trafik **uçtan uca şifreli** (X25519 + AES-256) olduğundan relay
-  içeriği göremez.
-- Artık aynı ağda olmaya gerek yok; NAT/CGNAT arkasında bile çalışır.
+### Ürün modu
+- Kontrollü cihaz (özellikle Android APK) public relay'e outbound `wss://`
+  bağlantı açar.
+- Kontrolcü (web arayüzü) aynı relay'e bağlanır.
+- İki taraf 6 haneli **PIN** ile eşleşir.
+- Relay yalnızca çerçeveleri taşır; içerik **uçtan uca şifrelidir**
+  (X25519 + secretbox tabanlı oturum).
+- Aynı Wi‑Fi ağında olma zorunluluğı yoktur.
 
-> **Güvenlik notu:** v0.3'te APK INTERNET izni **korunur** (sadece `wss://` için;
-> cleartext hâlâ kapalı). Relay trafiğin içeriğini göremez; uçtan uca şifre
-> değişmedi. Yerel WiFi (v0.2) modu hâlâ `dev:server` ile masaüstünde
-> mevcuttur.
+### Geliştirme / test modu
+Repo içinde ayrıca Node tabanlı bir **yerel güvenli WebSocket host** da bulunur:
+- `server/` paketi
+- yerel geliştirme
+- smoke testi
+- protokol doğrulama
+- stub platform ile masaüstü denemeleri
+
+> Kısa özet: **gerçek kullanım akışı relay-first**, **Node server ise dev/test
+> yardımcısıdır**.
 
 ## Özellikler
-- **İnternetsiz çalışma**: Tüm iletişim yerel WiFi üzerinden. AndroidManifest'ten
-  INTERNET izni fiziksel olarak kaldırılır; cihazın DNS çözmesi veya dışarıdan
-  bir soket açması muhtemel değildir.
-- **İki rol bir APK'da**: Uygulama açıldığında rolü seçer:
-  - *Kontrolcü*  —  başka bir cihazı kontrol eder (bağlanır + komut gönderir).
-  - *Kontrollü*  —  bu cihaz bir WS sunucu açar, PIN gösterir, gelen
-    bağlantıları şifreli kanal üzerinden doğrular.
-- **Çoklu platform**: Web kontrol paneli (tarayıcı), ve Android APK (Capacitor).
-- **Güvenli**: 6 haneli PIN eşleşme + X25519 (ECDH) + AES-256 secretbox
-  şifreli kanal. Hiçbir veri dışarı gönderilmez, telemetri yok.
-- **Kontroller**: WiFi / Bluetooth aç-kapat, ses/zil seviyesi, pil durumu,
-  ekran kilitle, dosya listeleme/aktarımı, konum, sistem bildirimi.
+- 6 haneli PIN ile eşleşme
+- uçtan uca şifreli kontrol kanalı
+- kontrolcü web arayüzü
+- kontrollü rol için Android APK akışı
+- bağlantı kontrolleri (WiFi / Bluetooth / mobil veri komutları platforma göre)
+- ses / zil / pil / konum / dosya / bildirim / ekran kilidi gibi komutlar
+- relay ile NAT/CGNAT arkasında çalışma
+- smoke test ile temel protokol doğrulaması
 
-## Mimari (kısa)
-- shared/   — Protokol tipleri + şifreleme + saf server core (tweetnacl).
-- server/   — Node masaüstü host'u (FS store + ws tabanlı WS sunucu).
-- app/      — React + Vite kontrol paneli + Capacitor içine gömülü server
-  (Android plugin'leri ile).
-- test/     — E2E smoke (server + client handshake iyileştirme).
-- scripts/  — AndroidManifest'i internetsiz yapan idempotent patcher.
-- app/android/ — Capacitor ürettiği Android projesi + Çaldır Java plugin'leri.
+## Repo yapısı
+- `shared/` — protokol tipleri, kripto yardımcıları, eşleşme ve oturum mantığı
+- `server/` — Node tabanlı güvenli WebSocket host (dev/test)
+- `relay/` — PIN tabanlı relay sunucusu
+- `app/` — React + Vite kontrol paneli ve Capacitor kabuğu
+- `test/` — E2E smoke testi
+- `scripts/` — yardımcı scriptler
+- `ARCHITECTURE.md` — ayrıntılı mimari özeti
+- `DEPLOYMENT.md` — deploy ve yayın yolları
+- `AGENTS.md` — bu repo üzerinde çalışırken izlenecek operasyon notları
 
-Ayrıntı: ARCHITECTURE.md.
+## Önemli ürün notu
+Tarayıcıdaki uygulama esas olarak **kontrolcü** rolünü hedefler.
+**Kontrollü** rol, repo içindeki mevcut UI akışında özellikle APK/Capacitor tarafı
+ile anlamlıdır. Bu yüzden browser demosu ile APK akışını aynı şey gibi
+anlatmamak gerekir.
 
 ## Hızlı başlangıç
 
 ```bash
-npm install          # tüm workspace'ler
-npm run typecheck    # tip kontrolü
-npm run build        # tüm paketleri derle
-npm run smoke        # E2E smoke (server + handshake + komut)
+npm install
+npm run typecheck
+npm run build
+npm run smoke
 ```
 
-### 1) Web kontrolcü (en hızlı deneme)
+## Hangi akış ne için?
+
+| Senaryo | Kullanılacak yol |
+|---|---|
+| Gerçek ürün demosu / APK'dan uzaktan kontrol | **relay-first** akış |
+| Protokol geliştirme / masaüstünde hızlı deneme | `npm run dev:server` |
+| Web arayüzü geliştirme | `npm run dev:app` |
+| Relay davranışı geliştirme | `npm run dev:relay` |
+| Temel uçtan uca doğrulama | `npm run smoke` |
+
+## Geliştirme komutları
 
 ```bash
-npm run dev:server   # masaüstü sunucu: PIN + ws:// gösterir
-# başka terminal:
-npm run dev:app      # http://localhost:5173 -> bağlan + PIN gir
+npm run dev:app
+npm run dev:relay
+npm run dev:server
 ```
 
-### 2) Android APK (iki-rol)
+### Ne işe yararlar?
+- `npm run dev:app` → React/Vite kontrol paneli
+- `npm run dev:relay` → relay sunucusunu yerelde ayağa kaldırır
+- `npm run dev:server` → Node tabanlı yerel güvenli WS host'u çalıştırır
+  (ürün modundan çok protokol/dev testi için)
 
-> #### Java gereksinimi
-> Bu repoda APK **derlenmiş** değil; çünkü bu geliştirme makinesinde
-> JDK yoktu. APK üretmek için senin tarafında:
-> - JDK 17 yükle (Android Studio ile birlikte gelir)
-> - JAVA_HOME ortam değişkenini ayarla
-> - Android SDK 34 (Android Studio yüükler)
->
-> Adım-bazlı akış yolu (loop-eng / dokümante):
+## En doğru demo akışları
+
+### 1) Relay tabanlı akış (önerilen ana akış)
+1. `npm run dev:relay`
+2. başka terminalde `npm run dev:app`
+3. kontrollü tarafı APK üzerinde aç
+4. APK'nın gösterdiği 6 haneli PIN'i web panelde gir
+5. relay üstünden uçtan uca şifreli oturum kur
+
+### 2) Node host / protokol geliştirme akışı
+1. `npm run dev:server`
+2. terminalde üretilen PIN ve `ws://` adresini kullan
+3. gerektiğinde protokolü / smoke testlerini / host davranışını geliştir
+4. bu akış ürün demosundan çok teknik doğrulama içindir
+
+## Android APK
+
+### Gereksinimler
+- JDK 17
+- Android SDK
+- `JAVA_HOME` ayarlı ortam
+
+### App build / sync
 
 ```bash
-# (ilk sefer) Java + Android SDK kurulduktan sonra:
 cd app
-npm run cap:add:android   # (zaten yapıldı; tekrar gerekmez)
-npm run android           # build + sync + manifest patch
+npm run android
 ```
 
+Bu komut:
+1. web arayüzünü derler
+2. Capacitor sync çalıştırır
+3. Android patch scriptini uygular
 
-npm run android otomatik olarak:
-  1. Web panelini Vite ile derler
-  2. Capacitor'a cap sync android ile kopyalar
-  3. scripts/patch-android-manifest.js ile INTERNET iznini kaldırır
-
-#### APK'yı çalıştırma
+### Android projesi notu
+`app/android` klasörü Capacitor tarafından yeniden üretilebilir / senkronize
+edilebilir çalışma alanıdır. Repo içinde Android tarafı eksik veya yeniden
+oluşturulması gereken bir durumda ise:
 
 ```bash
-# Android cihaz USB ile bağlı veya emülatör gerekebilir:
+cd app
+npm run cap:add:android
+npm run cap:sync
+npm run cap:patch
+```
+
+### Debug APK
+
+```bash
 cd app/android
 ./gradlew assembleDebug
-# çıktı: app/android/app/build/outputs/apk/debug/app-debug.apk
-adb install app/build/outputs/apk/debug/app-debug.apk
 ```
 
-Veya Android Studio ile app/android klasörünü aç ve Run tuşuna bas.
-
-#### Uygulama içi akış
-
-1. APK açılır. **Rol seç**: kontrolcü mü kontrollü mı?
-2. Kontrollü seçersen:
-   - APK public relay'e outbound `wss://` ile bağlanır.
-   - Ekranda 6 haneli PIN gösterilir.
-3. Kontrolcü olarak (web arayüzü) o PIN'i girersin, relay iki tarafı
-   köprüler, X25519+AES oturumu kurulur, kontroller açılır.
-
 ## Güvenlik özeti
-- PIN asla diske yazılmaz; yalnızca hashPin ile türetilen verifier.
-- 3 yanlış deneme = slot tamamen kilitlenir; 5 dakika TTL.
-- Oturum anahtarı ECDH shared secret x pairing secret ile HKDF-style türetilir.
-- Her mesaj artan counter içerir; replay tamamen reddedilir.
-- cleartextTraffic kapalı; sadece `wss://` ve `ws://` (yerel) kullanılır.
-- WAKE_LOCK / BLUETOOTH_CONNECT / ACCESS_FINE_LOCATION / WIFI_STATE gibi
-  yerel işler için gerekli izinler eklenir; relay trafiği uçtan uca şifreli.
+- PIN asla açık biçimde kalıcı store'a yazılmaz
+- eşleşme için hash tabanlı doğrulama kullanılır
+- oturum anahtarı ECDH + türetilmiş pairing secret ile kuruludur
+- tüm uygulama mesajları artan sayaçlarla replay korumalıdır
+- relay içerik taşıyıcısıdır; uygulama içeriğini okuyamaz
 
-## Relay server deploy (ücretsiz)
+## Deploy
 
-Relay server'ı Render.com free tier'da çalıştır:
+Deploy yollarının özeti için `DEPLOYMENT.md` dosyasına bak.
 
-1. https://render.com'a GitHub hesabınla giriş yap.
-2. **New +** → **Blueprint** → repo `fatihmehmettezcan5-ops/caldir` seç.
-3. `render.yaml` otomatik `caldir-relay` servisini oluşturur.
-4. Deploy tamamlandığında URL: `https://caldir-relay.onrender.com`.
-5. APK ve web arayüzü bu URL'i varsayılan olarak kullanır. Geri almak
-   için `?relay=wss://baska-adres.com` URL parametresi verilir.
+Kısa hali:
+- `render.yaml` → relay deploy
+- `app/dist/` → web arayüzü statik çıktı
+- `app/android` → Android build alanı
 
-> Render free tier 15dk idle'ından sonra sleep'e girer; ilk bağlantıda
-> ~30 sn uyanır. Uptime limiti yoktur.
-
-## Bilinen sınırlar (v0.2)
-- "Mobil veri aç-kapat" bir normal APK ile yasak YAML polidesi
-  (WRITE_SECURE_SETTINGS gerekir). Eylem yapılamazsa durum rapor edilir.
-- "Ekran kilitle" için DeviceAdmin aktivasyonu gerekir; aktivasyonu
-  yapmazsan "device_admin_required" hatası döner.
-- Totem/ağ izinsiz/ prefix yöntemi yok; haber anlaşılır.
+## Bilinen sınırlar
+- bazı Android sistem komutları cihaz / üretici / izin kısıtlarına bağlıdır
+- ekran kilidi gibi bazı özellikler ek Android yetkilendirmeleri ister
+- relay-first akışta internet erişimi gerekir; yerel Node host akışı ise ayrı
+  bir dev/test yoludur
+- APK derleme bu workspace içinde değil, JDK + Android SDK olan ortamda yapılır
 
 ## Lisans
 MIT

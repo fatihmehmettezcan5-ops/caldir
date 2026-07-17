@@ -36,9 +36,6 @@ dependencies {
     implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
     implementation project(':capacitor-android')
-    // WebSocket server: needed so the device-side role can accept incoming
-    // controllers. This library is pure-Java and works on local sockets
-    // without the INTERNET permission.
     implementation 'org.java-websocket:Java-WebSocket:1.5.6'
     testImplementation "junit:junit:$junitVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"

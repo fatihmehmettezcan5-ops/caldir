@@ -116,5 +116,12 @@ export class CapacitorHost {
 }
 
 async function safeGetUrl(p: CaldirServerPlugin): Promise<{ url: string } | null> {
-  try { return await p.getUrl(); } catch { return null; }
+  try {
+    const value = await p.getUrl();
+    return value && typeof value.url === "string" && value.url.length > 0
+      ? { url: value.url }
+      : null;
+  } catch {
+    return null;
+  }
 }

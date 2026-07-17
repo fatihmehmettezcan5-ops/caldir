@@ -32,19 +32,20 @@ async function main() {
 
   console.log("");
   console.log("  +---------------------------+");
-  console.log("  |        Çaldır!            |");
+  console.log("  |   Çaldır! Node Host       |");
   console.log("  +---------------------------+");
   console.log(`  |  PIN:   ${pin}            |`);
   console.log(`  |  Sunucu: ws://${addr}:${server.port} |`);
   console.log("  +---------------------------+");
   console.log("");
-  console.log("  Bu PIN'i kontrolcü cihaza gir.");
-  console.log("  İnternet YOK. Sadece yerel WiFi / hotspot.");
+  console.log("  Bu çıktı yerel dev/test host'u içindir.");
+  console.log("  Web kontrolcü bu PIN ve ws:// adresi ile yerelde bağlanabilir.");
+  console.log("  Ürün modunda ana akış relay-first'tür.");
   console.log("  Çıkış için Ctrl+C.");
   console.log("");
 }
 
-main().catch((e) => {
-  console.error("Çaldır sunucusu başlatılamadı:", e);
+main().catch((error: unknown) => {
+  console.error("Çaldır sunucusu başlatılamadı:", error);
   process.exit(1);
 });
