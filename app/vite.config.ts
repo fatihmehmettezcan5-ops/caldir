@@ -6,6 +6,7 @@ import react from "@vitejs/plugin-react";
 // bundle can be served standalone or embedded inside the Capacitor WebView.
 export default defineConfig({
   plugins: [react()],
+  base: "./",
   server: {
     port: 5173,
     // Help during local dev: allow loading the built bundle from the device.
