@@ -69,6 +69,8 @@ export class Transport {
   private sendSeq = 0;
   private recvSeq = 0;
   private pendingRes = new Map<string, PendingResponse>();
+  private relayHelloTimer: number | null = null;
+  private relayHelloAttempts = 0;
   readonly events: TransportEvents;
 
   constructor(events: TransportEvents) {
@@ -126,6 +128,7 @@ export class Transport {
     this.disconnect();
     this.clientKeys = newKeyPair();
     this.setState("connecting");
+    this.relayHelloAttempts = 0;
     const url = `${relayUrl}/?pin=${encodeURIComponent(pin)}&role=guest`;
     let ws: WebSocket;
     try {
@@ -137,26 +140,23 @@ export class Transport {
     ws.binaryType = "arraybuffer";
     this.ws = ws;
     ws.onopen = () => {
-      // Give the host a moment to arrive; the relay silently drops frames
-      // until both peers are connected so the hello may need to be retried.
-      this.send({
-        type: "hello",
-        v: PROTOCOL_VERSION,
-        pub: toBase64(this.clientKeys!.publicKey),
-      });
+      this.startRelayHelloRetry();
     };
     ws.onmessage = (ev) => this.onMessage(ev);
     ws.onclose = () => {
+      this.clearRelayHelloRetry();
       this.ws = null;
       this.setState("disconnected");
     };
     ws.onerror = () => {
+      this.clearRelayHelloRetry();
       this.events.onError?.("relay_error");
       this.setState("error");
     };
   }
 
   disconnect() {
+    this.clearRelayHelloRetry();
     if (this.ws) {
       try {
         if (this.ws.readyState === WebSocket.OPEN) this.send({ type: "bye" });
@@ -196,6 +196,48 @@ export class Transport {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(frame));
     }
+  }
+
+  private sendRelayHello() {
+    if (!this.clientKeys) return;
+    this.send({
+      type: "hello",
+      v: PROTOCOL_VERSION,
+      pub: toBase64(this.clientKeys.publicKey),
+    });
+  }
+
+  private startRelayHelloRetry() {
+    this.clearRelayHelloRetry();
+    this.sendRelayHello();
+    this.relayHelloAttempts = 1;
+    this.relayHelloTimer = window.setInterval(() => {
+      if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+        this.clearRelayHelloRetry();
+        return;
+      }
+      if (this.state !== "connecting") {
+        this.clearRelayHelloRetry();
+        return;
+      }
+      if (this.relayHelloAttempts >= 8) {
+        this.clearRelayHelloRetry();
+        this.events.onError?.("relay_timeout");
+        this.setState("error");
+        try { this.ws.close(); } catch { /* ignore */ }
+        return;
+      }
+      this.relayHelloAttempts += 1;
+      this.sendRelayHello();
+    }, 700);
+  }
+
+  private clearRelayHelloRetry() {
+    if (this.relayHelloTimer !== null) {
+      window.clearInterval(this.relayHelloTimer);
+      this.relayHelloTimer = null;
+    }
+    this.relayHelloAttempts = 0;
   }
 
   private onMessage(ev: MessageEvent) {
@@ -240,6 +282,7 @@ export class Transport {
   }
 
   private handleChallenge(frame: PlainFrame & { type: "challenge" }) {
+    this.clearRelayHelloRetry();
     this.salt = fromBase64(frame.salt);
     // UI now prompts for the 6-digit PIN displayed on the controlled device.
     this.setState("challenge");

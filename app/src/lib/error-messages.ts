@@ -15,6 +15,9 @@ export function humanizeTransportError(input: string | null | undefined): string
   if (msg === "relay_error" || msg === "relay_connect_failed") {
     return "Relay bağlantısı kurulamadı. Relay adresini ve internet erişimini kontrol et.";
   }
+  if (msg === "relay_timeout") {
+    return "Relay üzerinde kontrollü cihazdan yanıt alınamadı. PIN'in güncel olduğundan ve kontrollü cihazın hâlâ açık olduğundan emin ol.";
+  }
   if (msg === "ws_error") {
     return "WebSocket bağlantısı kurulamadı.";
   }
